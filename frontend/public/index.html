@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.ico">
+    <title>ChatGO</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Login styles */
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1, h2, h3 {
+            color: #1a73e8;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        input:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+        button {
+            padding: 0.75rem 1rem;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1557b0;
+        }
+        button.secondary {
+            background-color: #666;
+        }
+        button.secondary:hover {
+            background-color: #555;
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        button.danger:hover {
+            background-color: #c82333;
+        }
+        .error { color: red; margin-top: 1rem; text-align: center; }
+        .success { color: green; margin-top: 1rem; text-align: center; }
+
+        /* Chat styles */
+        .chat-container {
+            display: flex;
+            width: 100%;
+            max-width: 900px;
+            height: 600px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* Sidebar - user list */
+        .sidebar {
+            width: 250px;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-header h2 {
+            font-size: 1.2rem;
+            color: #333;
+        }
+        .header-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        #logout-btn, #admin-btn {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+        #admin-btn {
+            background-color: #28a745;
+        }
+        #admin-btn:hover {
+            background-color: #218838;
+        }
+        .user-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+        .user-item {
+            padding: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 0.25rem;
+        }
+        .user-item:hover {
+            background-color: #f0f2f5;
+        }
+        .user-item.active {
+            background-color: #e3f2fd;
+        }
+        .user-item .username {
+            font-weight: bold;
+        }
+        .user-item .status {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        /* Chat area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+        }
+        .chat-header .typing-indicator {
+            font-weight: normal;
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .message {
+            max-width: 70%;
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+        .message.sent {
+            align-self: flex-end;
+            background-color: #1a73e8;
+            color: white;
+        }
+        .message.received {
+            align-self: flex-start;
+            background-color: #f0f2f5;
+        }
+        .message .time {
+            font-size: 0.7rem;
+            margin-top: 0.25rem;
+            opacity: 0.7;
+        }
+        .message-input {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid #ddd;
+            gap: 0.5rem;
+        }
+        .message-input input {
+            flex: 1;
+        }
+        .no-chat {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #666;
+        }
+
+        /* Admin panel styles */
+        .admin-panel {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .admin-panel h3 {
+            margin-bottom: 1rem;
+        }
+        .admin-user-list {
+            margin-bottom: 1.5rem;
+        }
+        .admin-user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+        .admin-user-item .user-info {
+            flex: 1;
+        }
+        .admin-user-item .user-info .name {
+            font-weight: bold;
+        }
+        .admin-user-item .user-info .role {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .admin-user-item .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .admin-user-item .actions button {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.8rem;
+        }
+        .create-user-form {
+            background: #f9f9f9;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+        .create-user-form h4 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: normal;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .modal h3 {
+            margin-bottom: 1rem;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Hide sections by default */
+        #login-section, #chat-section {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="login-section" class="login-container">
+        <h1>ChatGO Login</h1>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" style="width: 100%; margin-top: 1rem;">Login</button>
+        </form>
+        <div id="login-message"></div>
+    </div>
+
+    <!-- Chat Section -->
+    <div id="chat-section" class="chat-container">
+        <!-- Sidebar with user list -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div>
+                    <h2>ChatGO</h2>
+                    <div id="current-user" style="font-size: 0.8rem; color: #666;"></div>
+                </div>
+                <div class="header-buttons">
+                    <button id="admin-btn" style="display: none;">Admin</button>
+                    <button id="logout-btn">Logout</button>
+                </div>
+            </div>
+            <div class="user-list" id="user-list">
+                <!-- Users will be added here dynamically -->
+            </div>
+        </div>
+
+        <!-- Chat area -->
+        <div class="chat-area">
+            <div id="chat-placeholder" class="no-chat">
+                Select a user to start chatting
+            </div>
+
+            <!-- Active chat -->
+            <div id="active-chat" style="display: none; flex: 1; display: flex; flex-direction: column;">
+                <div class="chat-header">
+                    <span id="chat-with"></span>
+                    <span id="typing-indicator" class="typing-indicator"></span>
+                </div>
+                <div class="messages" id="messages"></div>
+                <div class="message-input">
+                    <input type="text" id="message-input" placeholder="Type a message...">
+                    <button id="send-btn">Send</button>
+                </div>
+            </div>
+
+            <!-- Admin panel -->
+            <div id="admin-panel" class="admin-panel" style="display: none;">
+                <h3>User Management</h3>
+                <button id="back-to-chat-btn" class="secondary" style="margin-bottom: 1rem;">Back to Chat</button>
+
+                <div class="admin-user-list" id="admin-user-list">
+                    <!-- Admin user list will be populated here -->
+                </div>
+
+                <div class="create-user-form">
+                    <h4>Create New User</h4>
+                    <form id="create-user-form">
+                        <div class="form-group">
+                            <label for="new-username">Username</label>
+                            <input type="text" id="new-username" autocomplete="off" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password">Password</label>
+                            <input type="password" id="new-password" autocomplete="new-password" required>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="new-is-admin">
+                            <label for="new-is-admin">Administrator</label>
+                        </div>
+                        <button type="submit">Create User</button>
+                    </form>
+                    <div id="create-user-message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal">
+            <h3>Edit User</h3>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id">
+                <div class="form-group">
+                    <label for="edit-username">Username</label>
+                    <input type="text" id="edit-username" autocomplete="off" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-password">New Password (leave empty to keep current)</label>
+                    <input type="password" id="edit-password" autocomplete="new-password">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="edit-is-admin">
+                    <label for="edit-is-admin">Administrator</label>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit">Save</button>
+                    <button type="button" id="cancel-edit-btn" class="secondary">Cancel</button>
+                </div>
+            </form>
+            <div id="edit-user-message"></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
