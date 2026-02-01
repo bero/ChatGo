@@ -23,6 +23,7 @@ func main() {
 
 	// Create and start the WebSocket hub.
 	hub := websocket.NewHub()
+	websocket.SetGlobalHub(hub)
 	go hub.Run()
 
 	// Public endpoints (no auth required).
@@ -59,9 +60,12 @@ func main() {
 
 	// Conversation endpoints (authenticated users).
 	http.HandleFunc("/api/conversations", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		switch r.Method {
+		case http.MethodGet:
+			api.AuthMiddleware(api.GetConversationsHandler)(w, r)
+		case http.MethodPost:
 			api.AuthMiddleware(api.CreateConversationHandler)(w, r)
-		} else {
+		default:
 			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 		}
 	})

@@ -111,3 +111,39 @@ func (h *Hub) IsUserOnline(userID string) bool {
 	_, exists := h.clients[userID]
 	return exists
 }
+
+// Global hub instance for access from API handlers.
+var globalHub *Hub
+
+// SetGlobalHub sets the global hub instance.
+func SetGlobalHub(h *Hub) {
+	globalHub = h
+}
+
+// GetGlobalHub returns the global hub instance.
+func GetGlobalHub() *Hub {
+	return globalHub
+}
+
+// NewConversationMessage is sent when a user is added to a conversation.
+type NewConversationMessage struct {
+	Type           string `json:"type"` // "new_conversation"
+	ConversationID string `json:"conversation_id"`
+}
+
+// NotifyNewConversation notifies all participants about a new conversation.
+func NotifyNewConversation(conversationID string, participantIDs []string) {
+	hub := GetGlobalHub()
+	if hub == nil {
+		return
+	}
+
+	msg := NewConversationMessage{
+		Type:           "new_conversation",
+		ConversationID: conversationID,
+	}
+
+	for _, userID := range participantIDs {
+		hub.SendToUser(userID, msg)
+	}
+}

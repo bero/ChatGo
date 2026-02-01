@@ -89,9 +89,9 @@
         /* Chat styles */
         .chat-container {
             display: flex;
-            width: 100%;
-            max-width: 900px;
-            height: 600px;
+            width: calc(100vw - 2rem);
+            max-width: 1400px;
+            height: calc(100vh - 2rem);
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -308,6 +308,75 @@
         #login-section, #chat-section {
             display: none;
         }
+
+        /* Group button and conversation list styles */
+        #new-group-btn {
+            width: 100%;
+            margin-bottom: 0.5rem;
+            background-color: #28a745;
+        }
+        #new-group-btn:hover {
+            background-color: #218838;
+        }
+        .conversation-item {
+            padding: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 0.25rem;
+        }
+        .conversation-item:hover {
+            background-color: #f0f2f5;
+        }
+        .conversation-item.active {
+            background-color: #e3f2fd;
+        }
+        .conversation-item .conv-name {
+            font-weight: bold;
+        }
+        .conversation-item .conv-info {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .conversation-item.group-chat .conv-name::before {
+            content: "";
+            margin-right: 0.25rem;
+        }
+        .section-label {
+            font-size: 0.75rem;
+            color: #999;
+            text-transform: uppercase;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        /* User checkbox list in group modal */
+        .user-checkbox-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .user-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            cursor: pointer;
+        }
+        .user-checkbox-item:hover {
+            background-color: #f0f2f5;
+        }
+        .user-checkbox-item input {
+            margin-right: 0.5rem;
+        }
+
+        /* Unread badge */
+        .unread-badge {
+            color: #dc3545;
+            font-weight: bold;
+            margin-left: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -343,7 +412,14 @@
                 </div>
             </div>
             <div class="user-list" id="user-list">
-                <!-- Users will be added here dynamically -->
+                <button id="new-group-btn">+ New Group</button>
+                <div id="conversations-list">
+                    <!-- Conversations will be added here dynamically -->
+                </div>
+                <div class="section-label">Direct Messages</div>
+                <div id="users-list">
+                    <!-- Users will be added here dynamically -->
+                </div>
             </div>
         </div>
 
@@ -395,6 +471,30 @@
                     <div id="create-user-message"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- New Group Modal -->
+    <div id="group-modal" class="modal-overlay">
+        <div class="modal">
+            <h3>Create New Group</h3>
+            <form id="create-group-form">
+                <div class="form-group">
+                    <label for="group-name">Group Name</label>
+                    <input type="text" id="group-name" autocomplete="off" required>
+                </div>
+                <div class="form-group">
+                    <label>Select Participants</label>
+                    <div class="user-checkbox-list" id="group-user-list">
+                        <!-- Users will be populated here -->
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit">Create Group</button>
+                    <button type="button" id="cancel-group-btn" class="secondary">Cancel</button>
+                </div>
+            </form>
+            <div id="group-message"></div>
         </div>
     </div>
 

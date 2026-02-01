@@ -6,6 +6,7 @@ import "time"
 // Conversation represents a chat between users.
 type Conversation struct {
 	ID        string    `json:"id"`
+	Name      string    `json:"name,omitempty"` // Optional name for group chats
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -19,11 +20,18 @@ type Message struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
-// ConversationWithParticipants includes the other user in the conversation.
+// Participant represents a user in a conversation.
+type Participant struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+// ConversationWithParticipants includes all participants in the conversation.
 // Used when listing conversations for a user.
 type ConversationWithParticipants struct {
-	ID            string    `json:"id"`
-	CreatedAt     time.Time `json:"created_at"`
-	OtherUserID   string    `json:"other_user_id"`
-	OtherUsername string    `json:"other_username"`
+	ID           string        `json:"id"`
+	Name         string        `json:"name,omitempty"`
+	IsGroup      bool          `json:"is_group"`
+	Participants []Participant `json:"participants"`
+	CreatedAt    time.Time     `json:"created_at"`
 }

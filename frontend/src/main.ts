@@ -12,6 +12,9 @@ const loginMessage = document.getElementById("login-message") as HTMLDivElement;
 const chatSection = document.getElementById("chat-section") as HTMLDivElement;
 const currentUserDisplay = document.getElementById("current-user") as HTMLDivElement;
 const userList = document.getElementById("user-list") as HTMLDivElement;
+const conversationsList = document.getElementById("conversations-list") as HTMLDivElement;
+const usersList = document.getElementById("users-list") as HTMLDivElement;
+const newGroupBtn = document.getElementById("new-group-btn") as HTMLButtonElement;
 const chatPlaceholder = document.getElementById("chat-placeholder") as HTMLDivElement;
 const activeChat = document.getElementById("active-chat") as HTMLDivElement;
 const chatWith = document.getElementById("chat-with") as HTMLSpanElement;
@@ -20,6 +23,14 @@ const messagesContainer = document.getElementById("messages") as HTMLDivElement;
 const messageInput = document.getElementById("message-input") as HTMLInputElement;
 const sendBtn = document.getElementById("send-btn") as HTMLButtonElement;
 const logoutBtn = document.getElementById("logout-btn") as HTMLButtonElement;
+
+// DOM elements - Group Modal
+const groupModal = document.getElementById("group-modal") as HTMLDivElement;
+const createGroupForm = document.getElementById("create-group-form") as HTMLFormElement;
+const groupNameInput = document.getElementById("group-name") as HTMLInputElement;
+const groupUserList = document.getElementById("group-user-list") as HTMLDivElement;
+const cancelGroupBtn = document.getElementById("cancel-group-btn") as HTMLButtonElement;
+const groupMessage = document.getElementById("group-message") as HTMLDivElement;
 
 // DOM elements - Admin
 const adminBtn = document.getElementById("admin-btn") as HTMLButtonElement;
@@ -47,14 +58,32 @@ let currentUserIsAdmin: boolean = false;
 let selectedUserId: string | null = null;
 let selectedUsername: string | null = null;
 let currentConversationId: string | null = null;
+let currentConversationName: string | null = null;
 let websocket: WebSocket | null = null;
 let typingTimeout: number | null = null;
+let allUsers: User[] = [];
+let unreadCounts: Map<string, number> = new Map(); // conversationId -> unread count
 
 // User interface
 interface User {
     id: string;
     username: string;
     is_admin: boolean;
+}
+
+// Participant interface
+interface Participant {
+    id: string;
+    username: string;
+}
+
+// Conversation interface
+interface Conversation {
+    id: string;
+    name?: string;
+    is_group: boolean;
+    participants: Participant[];
+    created_at: string;
 }
 
 // Message interface
@@ -111,6 +140,11 @@ function init(): void {
     createUserForm.addEventListener("submit", handleCreateUser);
     editUserForm.addEventListener("submit", handleEditUser);
     cancelEditBtn.addEventListener("click", closeEditModal);
+
+    // Event listeners - Group
+    newGroupBtn.addEventListener("click", showGroupModal);
+    createGroupForm.addEventListener("submit", handleCreateGroup);
+    cancelGroupBtn.addEventListener("click", closeGroupModal);
 }
 
 function showLoginSection(): void {
@@ -126,7 +160,7 @@ function showChatSection(): void {
     // Show admin button only for admins.
     adminBtn.style.display = currentUserIsAdmin ? "block" : "none";
 
-    loadUsers();
+    loadUsersAndConversations();
     connectWebSocket();
 }
 
@@ -202,51 +236,115 @@ function showLoginMessage(message: string, type: "error" | "success"): void {
     loginMessage.className = type;
 }
 
-// Load users for the sidebar
-async function loadUsers(): Promise<void> {
+// Load users and conversations for the sidebar
+async function loadUsersAndConversations(): Promise<void> {
     try {
-        const response = await fetch(`${API_URL}/api/users`, {
+        // Load users
+        const usersResponse = await fetch(`${API_URL}/api/users`, {
             headers: { "Authorization": `Bearer ${authToken}` }
         });
 
-        if (!response.ok) {
+        if (!usersResponse.ok) {
             console.error("Failed to load users");
             return;
         }
 
-        const users: User[] = await response.json();
+        allUsers = await usersResponse.json();
 
-        userList.innerHTML = "";
+        // Load conversations
+        const convsResponse = await fetch(`${API_URL}/api/conversations`, {
+            headers: { "Authorization": `Bearer ${authToken}` }
+        });
 
-        // Filter out current user and display others
-        users
-            .filter(user => user.id !== currentUserId)
+        let conversations: Conversation[] = [];
+        if (convsResponse.ok) {
+            conversations = await convsResponse.json() || [];
+        }
+
+        // Clear and populate conversations list
+        conversationsList.innerHTML = "";
+
+        // Show group conversations first
+        conversations
+            .filter(conv => conv.is_group)
+            .forEach(conv => {
+                const convItem = document.createElement("div");
+                convItem.className = "conversation-item group-chat";
+                convItem.dataset.conversationId = conv.id;
+                const unreadCount = unreadCounts.get(conv.id) || 0;
+                const badgeDisplay = unreadCount > 0 ? "inline" : "none";
+                convItem.innerHTML = `
+                    <div class="conv-name">${escapeHtml(conv.name || "Group")} <span class="unread-badge" style="display: ${badgeDisplay}">(${unreadCount})</span></div>
+                    <div class="conv-info">${conv.participants.length} members</div>
+                `;
+                convItem.addEventListener("click", () => selectConversation(conv));
+                conversationsList.appendChild(convItem);
+            });
+
+        // Clear and populate users list (for direct messages)
+        usersList.innerHTML = "";
+
+        // Get IDs of users we already have 1:1 conversations with
+        const usersWithConversations = new Set<string>();
+        conversations
+            .filter(conv => !conv.is_group && conv.participants.length === 2)
+            .forEach(conv => {
+                const otherUser = conv.participants.find(p => p.id !== currentUserId);
+                if (otherUser) {
+                    usersWithConversations.add(otherUser.id);
+                    // Add existing 1:1 conversation to the list
+                    const convItem = document.createElement("div");
+                    convItem.className = "conversation-item";
+                    convItem.dataset.conversationId = conv.id;
+                    convItem.dataset.userId = otherUser.id;
+                    const unreadCount = unreadCounts.get(conv.id) || 0;
+                    const badgeDisplay = unreadCount > 0 ? "inline" : "none";
+                    convItem.innerHTML = `
+                        <div class="conv-name">${escapeHtml(otherUser.username)} <span class="unread-badge" style="display: ${badgeDisplay}">(${unreadCount})</span></div>
+                        <div class="conv-info">Direct message</div>
+                    `;
+                    convItem.addEventListener("click", () => selectConversation(conv));
+                    usersList.appendChild(convItem);
+                }
+            });
+
+        // Add users we don't have conversations with
+        allUsers
+            .filter(user => user.id !== currentUserId && !usersWithConversations.has(user.id))
             .forEach(user => {
                 const userItem = document.createElement("div");
                 userItem.className = "user-item";
                 userItem.dataset.userId = user.id;
                 userItem.dataset.username = user.username;
                 userItem.innerHTML = `
-                    <div class="username">${user.username}</div>
+                    <div class="username">${escapeHtml(user.username)}</div>
                     <div class="status">${user.is_admin ? "Admin" : "User"}</div>
                 `;
                 userItem.addEventListener("click", () => selectUser(user.id, user.username));
-                userList.appendChild(userItem);
+                usersList.appendChild(userItem);
             });
 
     } catch (error) {
-        console.error("Error loading users:", error);
+        console.error("Error loading users/conversations:", error);
     }
 }
 
-// Select a user to chat with
+// Legacy function for compatibility
+async function loadUsers(): Promise<void> {
+    await loadUsersAndConversations();
+}
+
+// Select a user to chat with (creates 1:1 conversation)
 async function selectUser(userId: string, username: string): Promise<void> {
     selectedUserId = userId;
     selectedUsername = username;
+    currentConversationName = username;
 
-    // Update UI
-    document.querySelectorAll(".user-item").forEach(item => {
+    // Update UI - clear all active states
+    document.querySelectorAll(".user-item, .conversation-item").forEach(item => {
         item.classList.remove("active");
+    });
+    document.querySelectorAll(".user-item").forEach(item => {
         if ((item as HTMLElement).dataset.userId === userId) {
             item.classList.add("active");
         }
@@ -260,6 +358,49 @@ async function selectUser(userId: string, username: string): Promise<void> {
 
     // Get or create conversation
     await getOrCreateConversation(userId);
+}
+
+// Select an existing conversation (1:1 or group)
+async function selectConversation(conv: Conversation): Promise<void> {
+    currentConversationId = conv.id;
+
+    // Clear unread count for this conversation
+    unreadCounts.delete(conv.id);
+    updateUnreadBadges();
+
+    // Update UI - clear all active states
+    document.querySelectorAll(".user-item, .conversation-item").forEach(item => {
+        item.classList.remove("active");
+    });
+    document.querySelectorAll(".conversation-item").forEach(item => {
+        if ((item as HTMLElement).dataset.conversationId === conv.id) {
+            item.classList.add("active");
+        }
+    });
+
+    chatPlaceholder.style.display = "none";
+    activeChat.style.display = "flex";
+
+    if (conv.is_group) {
+        currentConversationName = conv.name || "Group";
+        const memberNames = conv.participants
+            .filter(p => p.id !== currentUserId)
+            .map(p => p.username)
+            .join(", ");
+        chatWith.textContent = `${conv.name} (${conv.participants.length} members)`;
+    } else {
+        const otherUser = conv.participants.find(p => p.id !== currentUserId);
+        selectedUserId = otherUser?.id || null;
+        selectedUsername = otherUser?.username || null;
+        currentConversationName = otherUser?.username || "Chat";
+        chatWith.textContent = currentConversationName;
+    }
+
+    typingIndicator.textContent = "";
+    messagesContainer.innerHTML = "";
+
+    // Load messages
+    await loadMessages(conv.id);
 }
 
 // Get or create a conversation with another user
@@ -337,6 +478,9 @@ function connectWebSocket(): void {
             handleIncomingMessage(data as ChatMessage);
         } else if (data.type === "typing") {
             handleTypingIndicator(data as TypingMessage);
+        } else if (data.type === "new_conversation") {
+            // Refresh conversation list when added to a new conversation
+            loadUsersAndConversations();
         }
     };
 
@@ -357,11 +501,51 @@ function connectWebSocket(): void {
 
 // Handle incoming chat message
 function handleIncomingMessage(msg: ChatMessage): void {
-    // Only show if it's for the current conversation
     if (msg.conversation_id === currentConversationId) {
+        // Currently viewing this conversation - show message
         addMessageToUI(msg);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    } else {
+        // Not viewing this conversation - increment unread count (only for messages from others)
+        if (msg.sender_id !== currentUserId) {
+            const currentCount = unreadCounts.get(msg.conversation_id) || 0;
+            unreadCounts.set(msg.conversation_id, currentCount + 1);
+            updateUnreadBadges();
+        }
     }
+}
+
+// Update unread badges in the sidebar
+function updateUnreadBadges(): void {
+    // Update conversation items
+    document.querySelectorAll(".conversation-item").forEach(item => {
+        const convId = (item as HTMLElement).dataset.conversationId;
+        const badge = item.querySelector(".unread-badge") as HTMLElement;
+        if (convId && badge) {
+            const count = unreadCounts.get(convId) || 0;
+            if (count > 0) {
+                badge.textContent = `(${count})`;
+                badge.style.display = "inline";
+            } else {
+                badge.style.display = "none";
+            }
+        }
+    });
+
+    // Update user items (for users without existing conversations)
+    document.querySelectorAll(".user-item").forEach(item => {
+        const convId = (item as HTMLElement).dataset.conversationId;
+        const badge = item.querySelector(".unread-badge") as HTMLElement;
+        if (convId && badge) {
+            const count = unreadCounts.get(convId) || 0;
+            if (count > 0) {
+                badge.textContent = `(${count})`;
+                badge.style.display = "inline";
+            } else {
+                badge.style.display = "none";
+            }
+        }
+    });
 }
 
 // Handle typing indicator
@@ -681,6 +865,113 @@ async function handleDeleteUser(userId: string, username: string): Promise<void>
         alert("Failed to delete user");
         console.error("Delete user error:", error);
     }
+}
+
+// ==================== Group Chat Functions ====================
+
+// Show the group creation modal
+function showGroupModal(): void {
+    // Populate user list
+    groupUserList.innerHTML = "";
+
+    allUsers
+        .filter(user => user.id !== currentUserId)
+        .forEach(user => {
+            const userItem = document.createElement("div");
+            userItem.className = "user-checkbox-item";
+            userItem.innerHTML = `
+                <input type="checkbox" id="group-user-${user.id}" value="${user.id}">
+                <label for="group-user-${user.id}">${escapeHtml(user.username)}</label>
+            `;
+            groupUserList.appendChild(userItem);
+        });
+
+    groupNameInput.value = "";
+    groupMessage.textContent = "";
+    groupModal.style.display = "flex";
+}
+
+// Close the group creation modal
+function closeGroupModal(): void {
+    groupModal.style.display = "none";
+}
+
+// Handle group creation form submission
+async function handleCreateGroup(event: Event): Promise<void> {
+    event.preventDefault();
+
+    const name = groupNameInput.value.trim();
+    if (!name) {
+        showGroupMessage("Group name is required", "error");
+        return;
+    }
+
+    // Get selected users
+    const selectedUsers: string[] = [];
+    groupUserList.querySelectorAll("input[type='checkbox']:checked").forEach((checkbox) => {
+        selectedUsers.push((checkbox as HTMLInputElement).value);
+    });
+
+    if (selectedUsers.length < 1) {
+        showGroupMessage("Select at least one other user", "error");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/conversations`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                name: name,
+                participant_ids: selectedUsers
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            showGroupMessage(data.error || "Failed to create group", "error");
+            return;
+        }
+
+        const conv = await response.json();
+
+        // Close modal and refresh
+        closeGroupModal();
+        await loadUsersAndConversations();
+
+        // Select the new conversation
+        const fullConv: Conversation = {
+            id: conv.id,
+            name: conv.name,
+            is_group: true,
+            participants: [], // Will be loaded when selected
+            created_at: conv.created_at
+        };
+
+        // Load fresh conversation data and select it
+        const convsResponse = await fetch(`${API_URL}/api/conversations`, {
+            headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        if (convsResponse.ok) {
+            const conversations: Conversation[] = await convsResponse.json() || [];
+            const newConv = conversations.find(c => c.id === conv.id);
+            if (newConv) {
+                selectConversation(newConv);
+            }
+        }
+
+    } catch (error) {
+        showGroupMessage("Failed to create group", "error");
+        console.error("Create group error:", error);
+    }
+}
+
+function showGroupMessage(message: string, type: "error" | "success"): void {
+    groupMessage.textContent = message;
+    groupMessage.className = type;
 }
 
 // Start the app

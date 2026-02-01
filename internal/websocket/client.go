@@ -220,23 +220,15 @@ func (c *Client) handleTypingMessage(msg IncomingMessage) {
 
 // sendToConversationParticipants sends a message to all users in a conversation.
 func (c *Client) sendToConversationParticipants(conversationID string, message interface{}) {
-	// Get all conversations for this conversation to find participants.
-	// This is a simple approach - in production you might cache this.
-	conversations, err := db.GetUserConversations(c.UserID)
+	// Get all participants in this conversation.
+	participants, err := db.GetConversationParticipants(conversationID)
 	if err != nil {
-		log.Printf("Failed to get conversations: %v", err)
+		log.Printf("Failed to get conversation participants: %v", err)
 		return
 	}
 
-	// Find the other user in this conversation and send to them.
-	for _, conv := range conversations {
-		if conv.ID == conversationID {
-			// Send to the other user.
-			c.hub.SendToUser(conv.OtherUserID, message)
-			break
-		}
+	// Send to all participants (including self so message appears in sender's chat).
+	for _, p := range participants {
+		c.hub.SendToUser(p.ID, message)
 	}
-
-	// Also send to self (so message appears in sender's chat).
-	c.hub.SendToUser(c.UserID, message)
 }
