@@ -13,6 +13,19 @@ cd /c/Attracs/ChatGo/frontend && npm run build
 cd /c/Attracs/ChatGo && go run ./cmd/server
 ```
 
+## Linting
+
+```bash
+# Lint Go code (install first: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+cd /c/Attracs/ChatGo && golangci-lint run
+
+# Lint TypeScript
+cd /c/Attracs/ChatGo/frontend && npm run lint
+
+# Fix TypeScript lint issues automatically
+cd /c/Attracs/ChatGo/frontend && npm run lint:fix
+```
+
 ## Database Migrations
 
 Migrations are in `migrations/` directory. Apply them manually to PostgreSQL:

@@ -1,0 +1,46 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+
+linters-settings:
+  errcheck:
+    check-blank: true
+  govet:
+    enable:
+      - shadow
+  goimports:
+    local-prefixes: chatgo
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Ignore Close errors - common pattern
+    - linters: [errcheck]
+      source: "Close\\(\\)"
+    # Ignore Rollback errors - common pattern
+    - linters: [errcheck]
+      source: "defer.*Rollback\\(\\)"
+    # Ignore WebSocket deadline/close errors
+    - linters: [errcheck]
+      source: "conn\\.(Close|Set.*Deadline|WriteMessage)"
+    # Ignore json.Encode errors in HTTP handlers
+    - linters: [errcheck]
+      source: "json\\.NewEncoder.*Encode"
+    # Ignore ResponseWriter.Write errors
+    - linters: [errcheck]
+      source: "w\\.Write"
+    # Ignore SendToUser in websocket (fire and forget)
+    - linters: [errcheck]
+      source: "SendToUser"
+
+run:
+  timeout: 5m

@@ -13,9 +13,9 @@ import (
 
 // CreateConversationRequest is the request body for creating/getting a conversation.
 type CreateConversationRequest struct {
-	OtherUserID    string   `json:"other_user_id,omitempty"`    // For 1:1 chat
-	ParticipantIDs []string `json:"participant_ids,omitempty"`  // For group chat
-	Name           string   `json:"name,omitempty"`             // Group name (required for groups)
+	OtherUserID    string   `json:"other_user_id,omitempty"`   // For 1:1 chat
+	ParticipantIDs []string `json:"participant_ids,omitempty"` // For group chat
+	Name           string   `json:"name,omitempty"`            // Group name (required for groups)
 }
 
 // CreateConversationHandler handles POST /api/conversations

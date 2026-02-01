@@ -11,7 +11,6 @@ const loginMessage = document.getElementById("login-message") as HTMLDivElement;
 // DOM elements - Chat
 const chatSection = document.getElementById("chat-section") as HTMLDivElement;
 const currentUserDisplay = document.getElementById("current-user") as HTMLDivElement;
-const userList = document.getElementById("user-list") as HTMLDivElement;
 const conversationsList = document.getElementById("conversations-list") as HTMLDivElement;
 const usersList = document.getElementById("users-list") as HTMLDivElement;
 const newGroupBtn = document.getElementById("new-group-btn") as HTMLButtonElement;
@@ -56,7 +55,6 @@ let currentUserId: string | null = null;
 let currentUsername: string | null = null;
 let currentUserIsAdmin: boolean = false;
 let selectedUserId: string | null = null;
-let selectedUsername: string | null = null;
 let currentConversationId: string | null = null;
 let currentConversationName: string | null = null;
 let websocket: WebSocket | null = null;
@@ -337,8 +335,7 @@ async function loadUsers(): Promise<void> {
 // Select a user to chat with (creates 1:1 conversation)
 async function selectUser(userId: string, username: string): Promise<void> {
     selectedUserId = userId;
-    selectedUsername = username;
-    currentConversationName = username;
+        currentConversationName = username;
 
     // Update UI - clear all active states
     document.querySelectorAll(".user-item, .conversation-item").forEach(item => {
@@ -383,16 +380,11 @@ async function selectConversation(conv: Conversation): Promise<void> {
 
     if (conv.is_group) {
         currentConversationName = conv.name || "Group";
-        const memberNames = conv.participants
-            .filter(p => p.id !== currentUserId)
-            .map(p => p.username)
-            .join(", ");
         chatWith.textContent = `${conv.name} (${conv.participants.length} members)`;
     } else {
         const otherUser = conv.participants.find(p => p.id !== currentUserId);
         selectedUserId = otherUser?.id || null;
-        selectedUsername = otherUser?.username || null;
-        currentConversationName = otherUser?.username || "Chat";
+                currentConversationName = otherUser?.username || "Chat";
         chatWith.textContent = currentConversationName;
     }
 
@@ -467,11 +459,11 @@ function connectWebSocket(): void {
 
     websocket = new WebSocket(`${WS_URL}/ws?token=${authToken}`);
 
-    websocket.onopen = () => {
+    websocket.onopen = (): void => {
         console.log("WebSocket connected");
     };
 
-    websocket.onmessage = (event) => {
+    websocket.onmessage = (event): void => {
         const data = JSON.parse(event.data);
 
         if (data.type === "message") {
@@ -484,7 +476,7 @@ function connectWebSocket(): void {
         }
     };
 
-    websocket.onclose = () => {
+    websocket.onclose = (): void => {
         console.log("WebSocket disconnected");
         // Reconnect after 3 seconds
         setTimeout(() => {
@@ -494,7 +486,7 @@ function connectWebSocket(): void {
         }, 3000);
     };
 
-    websocket.onerror = (error) => {
+    websocket.onerror = (error): void => {
         console.error("WebSocket error:", error);
     };
 }
@@ -941,15 +933,6 @@ async function handleCreateGroup(event: Event): Promise<void> {
         // Close modal and refresh
         closeGroupModal();
         await loadUsersAndConversations();
-
-        // Select the new conversation
-        const fullConv: Conversation = {
-            id: conv.id,
-            name: conv.name,
-            is_group: true,
-            participants: [], // Will be loaded when selected
-            created_at: conv.created_at
-        };
 
         // Load fresh conversation data and select it
         const convsResponse = await fetch(`${API_URL}/api/conversations`, {

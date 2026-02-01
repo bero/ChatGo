@@ -9,11 +9,11 @@ type User struct {
 	// Each field has a name, type, and an optional "tag" (the `json:"..."` part).
 	// Tags tell the JSON encoder what name to use when converting to/from JSON.
 
-	ID           string    `json:"id"`            // Unique identifier
-	Username     string    `json:"username"`      // Display name / login name
-	PasswordHash string    `json:"-"`             // "-" means: never include in JSON output (security!)
-	IsAdmin      bool      `json:"is_admin"`      // Can this user manage other users?
-	CreatedAt    time.Time `json:"created_at"`    // When the user was created
+	ID           string    `json:"id"`         // Unique identifier
+	Username     string    `json:"username"`   // Display name / login name
+	PasswordHash string    `json:"-"`          // "-" means: never include in JSON output (security!)
+	IsAdmin      bool      `json:"is_admin"`   // Can this user manage other users?
+	CreatedAt    time.Time `json:"created_at"` // When the user was created
 }
 
 // UserCreateRequest is the data needed to create a new user.

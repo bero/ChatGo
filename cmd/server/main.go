@@ -84,5 +84,5 @@ func main() {
 	http.Handle("/", fs)
 
 	fmt.Println("Server starting on http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
